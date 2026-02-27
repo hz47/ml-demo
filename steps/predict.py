@@ -1,5 +1,11 @@
+import logging
 import pandas as pd
 import joblib
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 MODEL_PATH = "models/spam_classifier_v2.pkl"
 
@@ -23,10 +29,10 @@ def predict_sms(text):
 
 
 if __name__ == "__main__":
-    print(f"Model loaded. Using optimized threshold: {best_threshold:.4f}")
+    logging.info(f"Model loaded. Using optimized threshold: {best_threshold:.4f}")
     while True:
         msg = input("\nEnter SMS (or Ctrl+C to exit): ")
         if not msg.strip():
             continue
         prediction = predict_sms(msg)
-        print(f"Prediction: {prediction}")
+        logging.info(f"Prediction: {prediction}")

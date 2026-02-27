@@ -1,3 +1,7 @@
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 import logging
 import os
 import joblib
@@ -8,10 +12,11 @@ from sklearn.naive_bayes import MultinomialNB
 from sklearn.pipeline import Pipeline, FeatureUnion
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics import classification_report, precision_recall_curve
+from config import SMS_CLEAN_PATH, MODELS_DIR
 
-PROCESSED_DATA_PATH = "data/processed/sms_clean.csv"
-MODEL_DIR = "models"
-MODEL_PATH = os.path.join(MODEL_DIR, "spam_classifier_nb.pkl")
+PROCESSED_DATA_PATH = SMS_CLEAN_PATH
+MODEL_DIR = MODELS_DIR
+MODEL_PATH = MODEL_DIR / "spam_classifier_nb.pkl"
 
 
 def calculate_best_threshold(y_true, probs):

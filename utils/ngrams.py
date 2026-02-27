@@ -1,6 +1,11 @@
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 import logging
 import pandas as pd
 from sklearn.feature_extraction.text import CountVectorizer
+from config import SMS_CLEAN_PATH
 
 def top_ngrams(texts, ngram_range, top_n, min_df=1):
     if not texts:
@@ -22,7 +27,7 @@ def top_ngrams(texts, ngram_range, top_n, min_df=1):
 def run_ngrams(top_n=20):
     logging.info("STEP 3: NGRAM ANALYSIS STARTED")
 
-    df = pd.read_csv("data/processed/sms_clean.csv")
+    df = pd.read_csv(SMS_CLEAN_PATH)
     df = df.dropna(subset=["clean_strict"])
     df["clean_strict"] = df["clean_strict"].astype(str).str.strip()
     df = df[df["clean_strict"] != ""]
@@ -36,3 +41,7 @@ def run_ngrams(top_n=20):
     logging.info("Top trigrams: %s", top_trigrams)
 
     return top_bigrams, top_trigrams
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+    run_ngrams()

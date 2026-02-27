@@ -5,11 +5,16 @@ import pandas as pd
 import joblib
 import uvicorn
 import os
+import logging
 
-# Configuration
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(name)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
+
 MODEL_PATH = os.getenv("MODEL_PATH", "models/spam_classifier_v2.pkl")
 
-# Global state to hold the model
 model_state = {}
 
 class SMSRequest(BaseModel):
@@ -17,19 +22,25 @@ class SMSRequest(BaseModel):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup logic: Load model artifacts
     if not os.path.exists(MODEL_PATH):
+        logger.error(f"Model file not found at {MODEL_PATH}")
         raise FileNotFoundError(f"Model file not found at {MODEL_PATH}")
     
-    artifacts = joblib.load(MODEL_PATH)
-    model_state["pipeline"] = artifacts["pipeline"]
-    model_state["threshold"] = artifacts["threshold"]
-    
-    classes = list(artifacts["classes"])
-    model_state["spam_idx"] = classes.index("spam")
+    try:
+        artifacts = joblib.load(MODEL_PATH)
+        model_state["pipeline"] = artifacts["pipeline"]
+        model_state["threshold"] = artifacts["threshold"]
+        
+        classes = list(artifacts["classes"])
+        model_state["spam_idx"] = classes.index("spam")
+        
+        logger.info(f"Model loaded successfully. Threshold: {artifacts['threshold']}")
+    except Exception as e:
+        logger.error(f"Failed to load model: {e}")
+        raise
     
     yield
-    # Shutdown logic (if any)
+    logger.info("Shutting down API")
     model_state.clear()
 
 app = FastAPI(title="Spam Detection API", lifespan=lifespan)
@@ -47,25 +58,29 @@ def home():
 
 @app.post("/predict")
 def predict_sms(request: SMSRequest):
-    pipeline = model_state["pipeline"]
-    threshold = model_state["threshold"]
-    spam_idx = model_state["spam_idx"]
+    try:
+        pipeline = model_state["pipeline"]
+        threshold = model_state["threshold"]
+        spam_idx = model_state["spam_idx"]
 
-    # Convert input to format pipeline expects
-    X = pd.Series([request.text])
-    
-    # Get probability
-    spam_probability = pipeline.predict_proba(X)[0][spam_idx]
-    
-    # Determine label based on saved threshold
-    label = "spam" if spam_probability >= threshold else "ham"
-    
-    return {
-        "text": request.text,
-        "prediction": label,
-        "spam_probability": round(float(spam_probability), 4),
-        "threshold_used": round(float(threshold), 4)
-    }
+        X = pd.Series([request.text])
+        
+        spam_probability = pipeline.predict_proba(X)[0][spam_idx]
+        
+        label = "spam" if spam_probability >= threshold else "ham"
+        
+        text_preview = request.text[:50] + "..." if len(request.text) > 50 else request.text
+        logger.info(f"Request - text: '{text_preview}', prediction: {label}, probability: {round(spam_probability, 4)}")
+        
+        return {
+            "text": request.text,
+            "prediction": label,
+            "spam_probability": round(float(spam_probability), 4),
+            "threshold_used": round(float(threshold), 4)
+        }
+    except Exception as e:
+        logger.error(f"Prediction error: {e}")
+        raise
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

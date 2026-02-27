@@ -1,8 +1,14 @@
 import os
+import logging
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from dotenv import load_dotenv
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 from qdrant_client import QdrantClient
 from sklearn.preprocessing import normalize
@@ -12,7 +18,7 @@ from sklearn.metrics import silhouette_score
 from sklearn.decomposition import PCA
 from openai import OpenAI
 from pydantic import BaseModel, Field
-
+from config import CLUSTER_DIR
 # Load environment variables
 load_dotenv()
 
@@ -51,7 +57,7 @@ class LargeSMSClusterer:
         points_all = []
         offset = None
 
-        print(f"📡 Connecting to Qdrant collection: '{self.collection_name}'...")
+        logging.info(f"Connecting to Qdrant collection: '{self.collection_name}'")
 
         while True:
             points, next_page = self.client.scroll(
@@ -74,7 +80,7 @@ class LargeSMSClusterer:
                 break
 
         if not points_all:
-            print("❌ No data found in the collection.")
+            logging.warning("No data found in the collection.")
             return False
 
         texts = []
@@ -95,12 +101,12 @@ class LargeSMSClusterer:
             vectors.append(vec)
 
         if not texts:
-            print(f"❌ No valid pairs found. Checked for key: '{self.payload_key}'")
+            logging.warning(f"No valid pairs found. Checked for key: '{self.payload_key}'")
             return False
 
         self.data = pd.DataFrame({"SMS": texts})
         self.embeddings_norm = normalize(np.array(vectors))
-        print(f"✅ Loaded {len(self.data)} valid records.")
+        logging.info(f"Loaded {len(self.data)} valid records.")
         return True
 
     def maybe_pca(self, n_components=50):
@@ -109,13 +115,13 @@ class LargeSMSClusterer:
         max_components = min(n_samples, n_features)
 
         if max_components <= 1:
-            print("⚠️ Skipping PCA (not enough samples/features).")
+            logging.warning("Skipping PCA (not enough samples/features).")
             return
 
         safe_components = min(n_components, max_components)
         self.pca_model = PCA(n_components=safe_components, random_state=self.random_state)
         self.embeddings_norm = self.pca_model.fit_transform(self.embeddings_norm)
-        print(f"✅ Applied PCA: new dims = {self.embeddings_norm.shape[1]}")
+        logging.info(f"Applied PCA: new dims = {self.embeddings_norm.shape[1]}")
 
     def run_clustering(self, k_min=3, k_max=12, sample_size=2000):
         """Finds optimal k using sampled silhouette score."""
@@ -125,7 +131,7 @@ class LargeSMSClusterer:
         best_score = -1
         best_k = k_min
 
-        print(f"🔎 Analyzing {n_samples} records for optimal k...")
+        logging.info(f"Analyzing {n_samples} records for optimal k")
 
         rng = np.random.default_rng(self.random_state)
         if n_samples > sample_size:
@@ -139,13 +145,13 @@ class LargeSMSClusterer:
             km = MiniBatchKMeans(n_clusters=k, random_state=self.random_state, n_init="auto")
             labels = km.fit_predict(self.embeddings_norm)
             score = silhouette_score(X_sample, labels[sample_idx])
-            print(f"  > k={k}: Silhouette = {score:.3f}")
+            logging.info(f"k={k}: Silhouette = {score:.3f}")
 
             if score > best_score:
                 best_score = score
                 best_k = k
 
-        print(f"✅ Selected k={best_k} (Score: {best_score:.3f})")
+        logging.info(f"Selected k={best_k} (Score: {best_score:.3f})")
         self.model = MiniBatchKMeans(n_clusters=best_k, random_state=self.random_state, n_init="auto")
         self.data["Cluster"] = self.model.fit_predict(self.embeddings_norm)
         return best_score
@@ -154,7 +160,7 @@ class LargeSMSClusterer:
     def generate_cluster_labels(self, openai_client, model_name="gpt-4o-mini"):
         """Uses OpenAI with Pydantic to assign structured names to each cluster."""
         cluster_info = {}
-        print("\n🏷️  Generating Structured AI labels...")
+        logging.info("Generating AI labels for clusters")
 
         for i in sorted(self.data["Cluster"].unique()):
             cluster_subset = self.data[self.data["Cluster"] == i]
@@ -166,34 +172,32 @@ class LargeSMSClusterer:
                 model=model_name,
                 messages=[
                     {"role": "system", "content": "You are a linguistic expert specializing in SMS intent classification."},
-                    {"role": "user", "content": f"Analyze these SMS samples and provide a unique category:\n\n{samples_str}"}
+                    {"role": "user", "content": f"Analyze these SMS samples and provide a unique category (spam or not spam):\n\n{samples_str}"}
                 ],
                 response_format=ClusterLabel,
             )
 
             result = completion.choices[0].message.parsed
             cluster_info[i] = result.category_name
-            print(f" > Cluster {i}: {result.category_name} | Tone: {result.primary_tone}")
-            print(f"   Reason: {result.justification}")
+            logging.info(f"Cluster {i}: {result.category_name} | Tone: {result.primary_tone}")
 
         self.data["Cluster_Label"] = self.data["Cluster"].map(cluster_info)
         return cluster_info
 
     def get_cluster_insights(self, top_n=5):
         """Prints representative samples from each cluster."""
-        print("\n" + "=" * 30 + "\n📊 CLUSTER SUMMARY\n" + "=" * 30)
+        logging.info("CLUSTER SUMMARY")
         for i in sorted(self.data["Cluster"].unique()):
             cluster_data = self.data[self.data["Cluster"] == i]
-            print(f"\nCluster {i} ({len(cluster_data)} messages):")
+            logging.info(f"Cluster {i} ({len(cluster_data)} messages):")
             for s in cluster_data["SMS"].head(top_n).tolist():
                 cleaned = s.replace('\n', ' ')[:100]
-                print(f" - {cleaned}...")
+                logging.info(f"  - {cleaned}...")
 
-    def export_results(self, filename="clustered_results.csv"):
-        """Saves categorized data to CSV."""
+    def export_results(self, filename):        
         sort_col = "Cluster_Label" if "Cluster_Label" in self.data.columns else "Cluster"
-        self.data.sort_values(sort_col).to_csv(filename, index=False, encoding="utf-8-sig")
-        print(f"\n💾 Data exported to {filename}")
+        self.data.sort_values(sort_col).to_csv(CLUSTER_DIR / filename, index=False, encoding="utf-8-sig")
+        logging.info(f"Data exported to {filename}")
 
     def visualize_tsne(self, max_points=3000):
         """Generates a t-SNE plot."""
@@ -206,7 +210,7 @@ class LargeSMSClusterer:
             idx = rng.choice(n_samples, size=max_points, replace=False)
             X, labels = X[idx], labels[idx]
 
-        print(f"🎨 Generating t-SNE plot...")
+        logging.info("Generating t-SNE plot")
         tsne = TSNE(n_components=2, perplexity=30, random_state=self.random_state, init="pca")
         reduced = tsne.fit_transform(X)
 

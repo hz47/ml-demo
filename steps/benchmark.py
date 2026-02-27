@@ -1,5 +1,10 @@
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 import os
 import time
+import logging
 import joblib
 import pandas as pd
 import numpy as np
@@ -12,10 +17,16 @@ from sklearn.metrics import (
     confusion_matrix
 )
 from sklearn.model_selection import train_test_split
+from config import SMS_CLEAN_PATH, MODELS_DIR
 
-PROCESSED_DATA_PATH = "data/processed/sms_clean.csv"
-MODEL_V1_PATH = "models/spam_classifier_v2.pkl"
-MODEL_NB_PATH = "models/spam_classifier_nb.pkl"
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
+
+PROCESSED_DATA_PATH = SMS_CLEAN_PATH
+MODEL_V1_PATH = MODELS_DIR / "spam_classifier_v2.pkl"
+MODEL_NB_PATH = MODELS_DIR / "spam_classifier_nb.pkl"
 
 
 def load_test_data():
@@ -122,22 +133,18 @@ def determine_winner(metric, lr_val, nb_val, lower_is_better=False):
 
 
 def run_benchmark():
-    print("\n" + "=" * 60)
-    print("LOADING MODELS AND TEST DATA")
-    print("=" * 60)
+    logging.info("Loading models and test data")
     
     X_test, y_test = load_test_data()
-    print(f"Test set size: {len(X_test)}")
+    logging.info(f"Test set size: {len(X_test)}")
     
     lr_pipeline, lr_threshold, lr_classes = load_model(MODEL_V1_PATH)
     nb_pipeline, nb_threshold, nb_classes = load_model(MODEL_NB_PATH)
     
-    print(f"Logistic Regression - Threshold: {lr_threshold:.4f}")
-    print(f"Naive Bayes          - Threshold: {nb_threshold:.4f}")
+    logging.info(f"Logistic Regression - Threshold: {lr_threshold:.4f}")
+    logging.info(f"Naive Bayes - Threshold: {nb_threshold:.4f}")
     
-    print("\n" + "=" * 60)
-    print("MAKING PREDICTIONS")
-    print("=" * 60)
+    logging.info("Making predictions")
     
     y_pred_lr = predict_with_threshold(lr_pipeline, X_test, lr_threshold)
     y_pred_nb = predict_with_threshold(nb_pipeline, X_test, nb_threshold)
@@ -148,9 +155,7 @@ def run_benchmark():
     lr_metrics["confusion_matrix"] = confusion_matrix(y_test, y_pred_lr, labels=["ham", "spam"])
     nb_metrics["confusion_matrix"] = confusion_matrix(y_test, y_pred_nb, labels=["ham", "spam"])
     
-    print("\n" + "=" * 60)
-    print("MEASURING INFERENCE TIME")
-    print("=" * 60)
+    logging.info("Measuring inference time")
     
     lr_mean, lr_std = measure_inference_time(lr_pipeline, X_test)
     nb_mean, nb_std = measure_inference_time(nb_pipeline, X_test)
@@ -158,8 +163,8 @@ def run_benchmark():
     lr_metrics["inference_time"] = lr_mean * 1000
     nb_metrics["inference_time"] = nb_mean * 1000
     
-    print(f"Logistic Regression: {lr_mean*1000:.4f}ms (±{lr_std*1000:.4f}ms)")
-    print(f"Naive Bayes:         {nb_mean*1000:.4f}ms (±{nb_std*1000:.4f}ms)")
+    logging.info(f"Logistic Regression: {lr_mean*1000:.4f}ms (±{lr_std*1000:.4f}ms)")
+    logging.info(f"Naive Bayes: {nb_mean*1000:.4f}ms (±{nb_std*1000:.4f}ms)")
     
     winners = {
         metric: determine_winner(metric, lr_metrics[metric], nb_metrics[metric])
@@ -179,22 +184,17 @@ def run_benchmark():
     lr_score = sum(1 for w in winners.values() if w == "LR")
     nb_score = sum(1 for w in winners.values() if w == "NB")
     
-    print("\n" + "═" * 50)
-    print("SUMMARY")
-    print("═" * 50)
-    print(f"Logistic Regression wins: {lr_score}/{len(winners)} metrics")
-    print(f"Naive Bayes wins:          {nb_score}/{len(winners)} metrics")
+    logging.info(f"Logistic Regression wins: {lr_score}/{len(winners)} metrics")
+    logging.info(f"Naive Bayes wins: {nb_score}/{len(winners)} metrics")
     
     if lr_score > nb_score:
-        print("\n🏆 RECOMMENDED MODEL: Logistic Regression")
+        logging.info("RECOMMENDED MODEL: Logistic Regression")
     elif nb_score > lr_score:
-        print("\n🏆 RECOMMENDED MODEL: Naive Bayes")
+        logging.info("RECOMMENDED MODEL: Naive Bayes")
     else:
-        print("\n🏆 RECOMMENDED MODEL: Both models are equivalent")
+        logging.info("RECOMMENDED MODEL: Both models are equivalent")
     
-    print("\nNote: For spam detection, prioritize:")
-    print("  - High Recall (Spam) - catch more spam")
-    print("  - High F1 (Spam) - balanced performance on spam class")
+    logging.info("For spam detection, prioritize: High Recall (Spam) and High F1 (Spam)")
 
 
 if __name__ == "__main__":
