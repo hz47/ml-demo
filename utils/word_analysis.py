@@ -11,7 +11,7 @@ def get_top_words(texts, n=20):
 def run_word_analysis(top_n=20):
     logging.info("STEP 2: WORD ANALYSIS STARTED")
 
-    df = pd.read_csv("data/sms_clean.csv")
+    df = pd.read_csv("data/processed/sms_clean.csv")
     df = df.dropna(subset=["clean_strict"])
     df["clean_strict"] = df["clean_strict"].astype(str).str.strip()
 

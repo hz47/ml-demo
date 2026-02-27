@@ -1,0 +1,12 @@
+fastapi
+pydantic
+uvicorn
+pandas
+numpy
+scikit-learn
+joblib
+nltk
+openai
+qdrant-client
+python-dotenv
+matplotlib

@@ -1,9 +1,8 @@
 import os
-from dotenv import load_dotenv
-import uuid
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from dotenv import load_dotenv
 
 from qdrant_client import QdrantClient
 from sklearn.preprocessing import normalize
@@ -13,14 +12,13 @@ from sklearn.metrics import silhouette_score
 from sklearn.decomposition import PCA
 from openai import OpenAI
 from pydantic import BaseModel, Field
-# Load variables from .env into the environment
+
+# Load environment variables
 load_dotenv()
 
-# Access keys using os.getenv
 OPENAI_KEY = os.getenv("OPENAI_API_KEY")
 QDRANT_KEY = os.getenv("QDRANT_API_KEY")
-
-client = OpenAI(api_key=OPENAI_KEY)
+QDRANT_URL = os.getenv("QDRANT_URL", "http://qdrant-rosssw0o8o0gwwck0c0o0484.116.203.135.75.sslip.io")
 
 class ClusterLabel(BaseModel):
     category_name: str = Field(description="A unique 2-3 word category name for the cluster.")
@@ -30,8 +28,8 @@ class ClusterLabel(BaseModel):
 class LargeSMSClusterer:
     def __init__(
         self,
-        url,
-        collection_name,
+        url=QDRANT_URL,
+        collection_name="sms_collection",
         vector_name="sms_embedding",
         payload_key="clean",
         api_key=QDRANT_KEY,
@@ -159,9 +157,9 @@ class LargeSMSClusterer:
         print("\n🏷️  Generating Structured AI labels...")
 
         for i in sorted(self.data["Cluster"].unique()):
-            # Using .sample() for a better 'vibe check' of the whole cluster
-            sample_size = min(15, len(self.data[self.data["Cluster"] == i]))
-            samples = self.data[self.data["Cluster"] == i]["SMS"].sample(sample_size).tolist()
+            cluster_subset = self.data[self.data["Cluster"] == i]
+            sample_size = min(15, len(cluster_subset))
+            samples = cluster_subset["SMS"].sample(sample_size).tolist()
             samples_str = "\n- ".join(samples)
 
             completion = openai_client.beta.chat.completions.parse(
@@ -173,9 +171,7 @@ class LargeSMSClusterer:
                 response_format=ClusterLabel,
             )
 
-            # Access the structured data
             result = completion.choices[0].message.parsed
-            
             cluster_info[i] = result.category_name
             print(f" > Cluster {i}: {result.category_name} | Tone: {result.primary_tone}")
             print(f"   Reason: {result.justification}")
@@ -194,7 +190,6 @@ class LargeSMSClusterer:
 
     def export_results(self, filename="clustered_results.csv"):
         """Saves categorized data to CSV."""
-        # Ensure labels exist before sorting if possible
         sort_col = "Cluster_Label" if "Cluster_Label" in self.data.columns else "Cluster"
         self.data.sort_values(sort_col).to_csv(filename, index=False, encoding="utf-8-sig")
         print(f"\n💾 Data exported to {filename}")
@@ -220,20 +215,20 @@ class LargeSMSClusterer:
         plt.colorbar(scatter, label="Cluster ID")
         plt.show()
 
-# --- Execution ---
+def main():
+    clusterer = LargeSMSClusterer()
 
-URL = "http://qdrant-rosssw0o8o0gwwck0c0o0484.116.203.135.75.sslip.io"
-COLLECTION = "sms_collection"
+    if clusterer.fetch_data(max_points=10000):
+        clusterer.maybe_pca(n_components=50)
+        clusterer.run_clustering(k_min=3, k_max=10)
+        clusterer.get_cluster_insights(top_n=5)
+        
+        if OPENAI_KEY:
+            client = OpenAI(api_key=OPENAI_KEY)
+            clusterer.generate_cluster_labels(client) 
+        
+        clusterer.export_results("clustered_sms_with_labels.csv")
+        # clusterer.visualize_tsne(max_points=3000) # Optional
 
-clusterer = LargeSMSClusterer(URL, COLLECTION, payload_key="clean")
-
-if clusterer.fetch_data(max_points=10000):
-    clusterer.maybe_pca(n_components=50)
-    clusterer.run_clustering(k_min=3, k_max=10)
-    clusterer.get_cluster_insights(top_n=5)
-    
-    # Pass your OpenAI 'client' here
-    clusterer.generate_cluster_labels(client) 
-    
-    clusterer.export_results("clustered_sms_with_labels.csv")
-    clusterer.visualize_tsne(max_points=3000)
+if __name__ == "__main__":
+    main()

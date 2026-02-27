@@ -1,10 +1,10 @@
 import logging
 import sys
 
-from preprocessing import run_preprocessing
-from word_analysis import run_word_analysis
-from ngrams import run_ngrams
-from model_training import run_model_training
+from steps.clean import run_preprocessing
+from utils.word_analysis import run_word_analysis
+from utils.ngrams import run_ngrams
+from steps.train import run_model_training
 
 def setup_logging():
     logging.basicConfig(

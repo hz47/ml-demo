@@ -17,8 +17,10 @@ def top_ngrams(texts, ngram_range, top_n):
 def run_ngrams(top_n=20):
     logging.info("STEP 3: NGRAM ANALYSIS STARTED")
 
-    df = pd.read_csv("data/sms_clean.csv")
+    df = pd.read_csv("data/processed/sms_clean.csv")
+    df = df.dropna(subset=["clean_strict"])
     df["clean_strict"] = df["clean_strict"].astype(str).str.strip()
+    df = df[df["clean_strict"] != ""]
 
     texts = df["clean_strict"].tolist()
 
