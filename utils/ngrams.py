@@ -2,13 +2,18 @@ import logging
 import pandas as pd
 from sklearn.feature_extraction.text import CountVectorizer
 
-def top_ngrams(texts, ngram_range, top_n):
+def top_ngrams(texts, ngram_range, top_n, min_df=1):
+    if not texts:
+        return []
     vectorizer = CountVectorizer(ngram_range=ngram_range,
                                  stop_words="english",
-                                 min_df=2)
+                                 min_df=min_df)
     X = vectorizer.fit_transform(texts)
     counts = X.sum(axis=0).A1
-    vocab = vectorizer.get_feature_names_out()
+    try:
+        vocab = vectorizer.get_feature_names_out()
+    except AttributeError:
+        vocab = vectorizer.get_feature_names()
 
     df = pd.DataFrame({"ngram": vocab, "count": counts})
     df = df.sort_values("count", ascending=False)

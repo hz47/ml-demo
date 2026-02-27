@@ -186,7 +186,8 @@ class LargeSMSClusterer:
             cluster_data = self.data[self.data["Cluster"] == i]
             print(f"\nCluster {i} ({len(cluster_data)} messages):")
             for s in cluster_data["SMS"].head(top_n).tolist():
-                print(f" - {s.replace('\\n', ' ')[:100]}...")
+                cleaned = s.replace('\n', ' ')[:100]
+                print(f" - {cleaned}...")
 
     def export_results(self, filename="clustered_results.csv"):
         """Saves categorized data to CSV."""

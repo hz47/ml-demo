@@ -10,3 +10,7 @@ openai
 qdrant-client
 python-dotenv
 matplotlib
+pytest
+pytest-cov
+pytest-mock
+httpx
