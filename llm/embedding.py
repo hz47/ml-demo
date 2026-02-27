@@ -11,6 +11,7 @@ load_dotenv()
 OPENAI_KEY = os.getenv("OPENAI_API_KEY")
 QDRANT_KEY = os.getenv("QDRANT_API_KEY")
 QDRANT_URL = os.getenv("QDRANT_URL", "http://qdrant-rosssw0o8o0gwwck0c0o0484.116.203.135.75.sslip.io")
+
 COLLECTION_NAME = "sms_collection"
 CSV_PATH = "data/processed/sms_clean.csv"
 
