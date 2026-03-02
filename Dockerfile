@@ -2,21 +2,12 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    && rm -rf /var/lib/apt/lists/*
-
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app.py .
-COPY config.yml .
-COPY ml/ ./ml/
-COPY analysis/ ./analysis/
-COPY models/ ./models/
 COPY data/ ./data/
-
-ENV PYTHONUNBUFFERED=1
+COPY models/ ./models/
 
 EXPOSE 8000
 
