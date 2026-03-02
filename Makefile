@@ -1,4 +1,4 @@
-.PHONY: help clean train train_nb predict benchmark cluster api test test-cov all analysis word-analysis word-analysis-stop ngrams distribution sms-length word-count sentence-count correlation report-analysis
+.PHONY: help clean train train_nb train_lr train_rf train_svm train-all predict benchmark cluster api test test-cov all analysis word-analysis word-analysis-stop ngrams distribution sms-length word-count sentence-count correlation report-analysis report-images
 
 help:
 	@echo "Available commands:"
@@ -11,10 +11,15 @@ help:
 	@echo "  make word-count    - Run word count analysis by label"
 	@echo "  make sentence-count - Run sentence count analysis by label"
 	@echo "  make correlation  - Run correlation matrix analysis"
-	@echo "  make report-analysis - Generate visual analysis report (all charts)"
+	@echo "  make report-analysis - Generate visual analysis report (all charts in one figure)"
+	@echo "  make report-images   - Generate individual PNG images for documentation"
 	@echo "  make train          - Train Logistic Regression model"
-	@echo "  make train_nb       - Train Naive Bayes model"
-	@echo "  make predict        - Run interactive prediction"
+	@echo "  make train_nb      - Train Naive Bayes model"
+	@echo "  make train_lr      - Train Logistic Regression model"
+	@echo "  make train_rf      - Train Random Forest model"
+	@echo "  make train_svm     - Train SVM model"
+	@echo "  make train-all     - Train all 4 models"
+	@echo "  make predict       - Run interactive prediction"
 	@echo "  make benchmark      - Compare both models"
 	@echo "  make cluster       - Run the LLM SMS clustering script"
 	@echo "  make api           - Start the FastAPI server"
@@ -52,8 +57,8 @@ correlation:
 report-analysis:
 	python -m analysis.report_analysis
 
-train:
-	python -m ml.train
+report-images:
+	python -m analysis.report_images
 
 train_nb:
 	python -m ml.train_nb
@@ -63,8 +68,12 @@ train_rf:
 
 train_svm:
 	python -m ml.train_svm
+
 train_lr:
 	python -m ml.train_lr
+
+train-all:
+	python -m ml.train_nb && python -m ml.train_lr && python -m ml.train_rf && python -m ml.train_svm
 
 predict:
 	python -m ml.predict

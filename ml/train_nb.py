@@ -1,3 +1,4 @@
+import logging
 import pandas as pd
 import numpy as np
 import joblib
@@ -11,9 +12,21 @@ from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import classification_report, precision_recall_curve, confusion_matrix
 from sklearn.base import BaseEstimator, TransformerMixin
+from config import MODELS_DIR
+from ml.utils import load_data, find_high_precision_threshold
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
+
+logger = logging.getLogger(__name__)
+
 
 class SMSMetadataExtractor(BaseEstimator, TransformerMixin):
-    def fit(self, X, y=None): return self
+    def fit(self, X, y=None):
+        return self
+
     def transform(self, X):
         features = []
         triggers = ['win', 'won', 'prize', 'cash', 'claim', 'urgent', 'free', 'tone', 'voucher']
@@ -22,40 +35,32 @@ class SMSMetadataExtractor(BaseEstimator, TransformerMixin):
             char_count = len(text)
             words = text.split()
             word_count = len(words) + 1
-            
-            # New: Structural Complexity
-            # 1. Avg word length (Spam uses longer, formal words)
+
             avg_word_len = char_count / word_count
-            
-            # 2. Sentence count (Spam is often 3-4 short, punchy sentences)
             sent_count = text.count('.') + text.count('!') + text.count('?')
-            
-            # 3. Keyword trigger density
             trigger_count = sum(1 for t in triggers if t in text.lower())
-            
+
             features.append([
-                char_count, 
-                avg_word_len, 
-                sent_count, 
+                char_count,
+                avg_word_len,
+                sent_count,
                 trigger_count
             ])
         return np.array(features)
 
-def find_high_precision_threshold(y_true, probs, target_precision=1.0):
-    precisions, recalls, thresholds = precision_recall_curve(y_true, probs, pos_label="spam")
-    # We want the threshold that gives us exactly 100% precision if possible
-    valid_idx = np.where(precisions >= target_precision)[0]
-    return thresholds[valid_idx[0]] if len(valid_idx) > 0 else 0.98
 
 def run_training():
-    df = pd.read_csv("data/processed/sms_clean.csv").dropna()
+    logger.info("Starting Naive Bayes training...")
+
+    df = load_data()
     X = df[['text', 'clean_light']]
     y = df["label"]
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, stratify=y, random_state=42)
     X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.2, stratify=y_train, random_state=42)
 
-    # Hybrid Features
+    logger.info(f"Train size: {len(X_train)}, Val size: {len(X_val)}, Test size: {len(X_test)}")
+
     text_branch = FeatureUnion([
         ("words", TfidfVectorizer(max_features=4000, ngram_range=(1, 3))),
         ("chars", TfidfVectorizer(analyzer="char", max_features=2000, ngram_range=(3, 5)))
@@ -71,31 +76,39 @@ def run_training():
         ("meta_pipe", meta_branch, "text")
     ])
 
-    # Calibrated Model (prevents Naive Bayes extreme probabilities)
     pipeline = Pipeline([
         ("features", processor),
         ("clf", CalibratedClassifierCV(MultinomialNB(alpha=0.1), method='sigmoid', cv=5))
     ])
 
+    logger.info("Training pipeline...")
     pipeline.fit(X_train, y_train)
 
-    # Thresholding for ZERO False Positives
     spam_idx = list(pipeline.classes_).index("spam")
     val_probs = pipeline.predict_proba(X_val)[:, spam_idx]
     best_threshold = find_high_precision_threshold(y_val, val_probs)
 
-    # Final Evaluation
     test_probs = pipeline.predict_proba(X_test)[:, spam_idx]
     y_pred = np.where(test_probs >= best_threshold, "spam", "ham")
 
-    print(f"\n[FINAL] Decision Threshold: {best_threshold:.4f}")
-    print(classification_report(y_test, y_pred))
-    print("Confusion Matrix:\n", confusion_matrix(y_test, y_pred))
+    logger.info(f"[FINAL] Decision Threshold: {best_threshold:.4f}")
+    logger.info("\n" + classification_report(y_test, y_pred))
 
-    # Save for production
-    os.makedirs("models", exist_ok=True)
-    joblib.dump({"model": pipeline, "threshold": best_threshold}, "models/final_spam_model.pkl")
-    print("\nModel saved to models/final_spam_model.pkl")
+    cm = confusion_matrix(y_test, y_pred)
+    logger.info(f"Confusion Matrix:\n{cm}")
+
+    os.makedirs(MODELS_DIR, exist_ok=True)
+    model_path = MODELS_DIR / "final_spam_model.pkl"
+    joblib.dump({"model": pipeline, "threshold": best_threshold}, model_path)
+    logger.info(f"Model saved to {model_path}")
+
+    return {
+        "model": "Naive Bayes",
+        "threshold": best_threshold,
+        "classification_report": classification_report(y_test, y_pred, output_dict=True),
+        "confusion_matrix": cm
+    }
+
 
 if __name__ == "__main__":
     run_training()
