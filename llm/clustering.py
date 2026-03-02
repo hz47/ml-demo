@@ -219,6 +219,37 @@ class LargeSMSClusterer:
         plt.title(f"t-SNE Clustering (k={self.data['Cluster'].nunique()})")
         plt.colorbar(scatter, label="Cluster ID")
         plt.show()
+    def sync_labels_to_qdrant(self):
+        logging.info("Syncing AI labels and Cluster IDs back to Qdrant...")
+        
+        # Fetch points to get their internal IDs
+        points, _ = self.client.scroll(
+            collection_name=self.collection_name,
+            limit=len(self.data),
+            with_payload=True
+        )
+
+        # --- CRITICAL CHANGE: Use 'clean' instead of 'text' ---
+        # This matches your Qdrant Payload: {'clean': 'yup hey one day...'}
+        text_to_id = {p.payload["clean"]: p.id for p in points if "clean" in p.payload}
+
+        success_count = 0
+        for _, row in self.data.iterrows():
+            # Make sure 'SMS' in your DataFrame matches the 'clean' text in Qdrant
+            p_id = text_to_id.get(row["SMS"])
+            
+            if p_id:
+                self.client.set_payload(
+                    collection_name=self.collection_name,
+                    payload={
+                        "cluster_id": int(row["Cluster"]),
+                        "cluster_label": row["Cluster_Label"]
+                    },
+                    points=[p_id]
+                )
+                success_count += 1
+                
+        logging.info(f"Qdrant sync complete. Updated {success_count} points.")  
 
 def main():
     clusterer = LargeSMSClusterer()
@@ -231,6 +262,7 @@ def main():
         if OPENAI_KEY:
             client = OpenAI(api_key=OPENAI_KEY)
             clusterer.generate_cluster_labels(client) 
+            clusterer.sync_labels_to_qdrant()
         
         clusterer.export_results("clustered_sms_with_labels.csv")
         # clusterer.visualize_tsne(max_points=3000) # Optional

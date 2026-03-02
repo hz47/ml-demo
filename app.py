@@ -7,7 +7,9 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from openai import OpenAI
 from qdrant_client import QdrantClient
-
+# 1. Load the .env file explicitly
+from dotenv import load_dotenv
+load_dotenv()
 # Import your custom cleaning logic
 from data.clean import clean_text_v3
 
@@ -111,8 +113,19 @@ def cluster(request: SMSRequest):
 
     if not search_result:
         return {"category": "uncategorized", "confidence_score": 0.0}
+    
 
+    # Define match FIRST
     match = search_result[0]
+    
+    # THEN check the score
+    if match.score < 0.55:
+        return {
+            "semantic_category": "Uncertain/New Topic",
+            "similarity_score": round(match.score, 4),
+            "note": "Message does not closely match existing clusters."
+        }
+
     return {
         "semantic_category": match.payload.get("cluster_label", "unknown"),
         "similarity_score": round(match.score, 4),
