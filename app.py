@@ -1,90 +1,123 @@
+import os
+import uvicorn
+import joblib
+import pandas as pd
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from pydantic import BaseModel
-import pandas as pd
-import joblib
-import uvicorn
-import os
+from openai import OpenAI
+from qdrant_client import QdrantClient
 
-# Preprocessing: cleans raw SMS text into normalized tokens
-# Required because model was trained on cleaned text (e.g., "walmart" -> "walmart", "$" -> "moneysymb")
+# Import your custom cleaning logic
 from data.clean import clean_text_v3
 
-# Model configuration
+# Environment Configuration
 MODEL_PATH = os.getenv("MODEL_PATH", "models/svm_spam_model.pkl")
+OPENAI_KEY = os.getenv("OPENAI_API_KEY")
+QDRANT_KEY = os.getenv("QDRANT_API_KEY")
+QDRANT_URL = os.getenv("QDRANT_URL")
+COLLECTION_NAME = "sms_collection"
 
-# Global model state - populated at startup, cleared on shutdown
-model = {"pipeline": None, "threshold": 0.0, "spam_idx": 0}
+# Global state to hold models and clients
+state = {
+    "svm_pipeline": None,
+    "svm_threshold": 0.0,
+    "svm_spam_idx": 0,
+    "openai": None,
+    "qdrant": None
+}
 
-
-def load_model():
-    """Load trained model and artifacts from pickle file."""
-    artifacts = joblib.load(MODEL_PATH)
-    model["pipeline"] = artifacts["model"]
-    model["threshold"] = artifacts["threshold"]
-    # Find index of "spam" class in model's classes list
-    # This is needed because predict_proba returns probabilities in class order
-    model["spam_idx"] = list(model["pipeline"].classes_).index("spam")
-
+def load_svm():
+    """Load the local SVM spam model artifacts."""
+    if os.path.exists(MODEL_PATH):
+        artifacts = joblib.load(MODEL_PATH)
+        state["svm_pipeline"] = artifacts["model"]
+        state["svm_threshold"] = artifacts["threshold"]
+        state["svm_spam_idx"] = list(state["svm_pipeline"].classes_).index("spam")
+    else:
+        print(f"Warning: Model file not found at {MODEL_PATH}")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """FastAPI lifecycle handler - loads model on startup, clears on shutdown."""
-    load_model()
+    """Handles startup and shutdown of models and database connections."""
+    # 1. Load Local Model
+    load_svm()
+    
+    # 2. Initialize Cloud Clients
+    state["openai"] = OpenAI(api_key=OPENAI_KEY)
+    state["qdrant"] = QdrantClient(url=QDRANT_URL, api_key=QDRANT_KEY, check_compatibility=False)
+    
     yield
+    # Clean up on shutdown if necessary
+    state.clear()
 
-
-app = FastAPI(title="Spam Detection API", lifespan=lifespan)
-
+app = FastAPI(title="SMS Intelligence API", lifespan=lifespan)
 
 class SMSRequest(BaseModel):
-    """Request body for /predict endpoint."""
     text: str
-
 
 @app.get("/health")
 def health():
-    """Health check endpoint."""
-    return {"status": "ok"}
+    return {"status": "ok", "svm_loaded": state.get("svm_pipeline") is not None}
 
-
+# --- ENDPOINT 1: FAST BINARY CLASSIFICATION ---
 @app.post("/predict")
 def predict(request: SMSRequest):
-    """
-    Predict if SMS is spam or ham.
-    
-    Flow:
-    1. Preprocess: clean raw text using clean_text_v3 (critical for accuracy)
-    2. Create DataFrame with 'text' (for metadata features) and 'clean_light' (for TF-IDF)
-    3. Get probability from model
-    4. Apply threshold to determine label
-    """
-    pipeline = model["pipeline"]
-    spam_idx = model["spam_idx"]
-    threshold = model["threshold"]
+    """Predicts if an SMS is Spam or Ham using the local SVM model."""
+    if not state["svm_pipeline"]:
+        return {"error": "SVM model not loaded"}
 
-    # Step 1: Preprocess text - this is critical!
-    # Model expects cleaned tokens (e.g., "URGENT: Walmart $1000" -> "urgent walmart moneysymb")
+    # Preprocess
     cleaned = clean_text_v3(request.text)
     
-    # Step 2: Match training DataFrame structure
-    # The pipeline uses two separate branches (see ml/train_svm.py):
-    #   - 'text_pipe' (TF-IDF): runs on 'clean_light' - needs normalized tokens
-    #   - 'meta_pipe' (SMSMetadataExtractor): runs on 'text' - needs raw text for features
-    # Without both columns, the model won't work correctly.
+    # Format for pipeline (text for metadata, clean_light for TF-IDF)
     X = pd.DataFrame({"text": [request.text], "clean_light": [cleaned]})
     
-    # Step 3: Get probability of being spam
-    prob = pipeline.predict_proba(X)[0][spam_idx]
-    
-    # Step 4: Apply threshold (default 0.5, but model uses optimized 0.56 for high precision)
-    label = "spam" if prob >= threshold else "ham"
+    # Probability and Labeling
+    prob = state["svm_pipeline"].predict_proba(X)[0][state["svm_spam_idx"]]
+    label = "spam" if prob >= state["svm_threshold"] else "ham"
 
     return {
         "prediction": label,
         "spam_probability": round(float(prob), 4)
     }
 
+# --- ENDPOINT 2: SEMANTIC CLUSTERING (NEAR-REAL-TIME) ---
+@app.post("/cluster")
+def cluster(request: SMSRequest):
+    """Finds the semantic category of an SMS using Embeddings and Qdrant."""
+    if not state["openai"] or not state["qdrant"]:
+        return {"error": "AI/Vector clients not initialized"}
+
+    # 1. Preprocess
+    cleaned = clean_text_v3(request.text)
+    
+    # 2. Generate Embedding
+    response = state["openai"].embeddings.create(
+        model="text-embedding-3-small",
+        input=cleaned
+    )
+    vector = response.data[0].embedding
+
+    # 3. Vector Search in Qdrant
+    # This finds the 'Nearest Neighbor' among your pre-clustered messages
+    search_result = state["qdrant"].query_points(
+        collection_name=COLLECTION_NAME,
+        query=vector,
+        using="sms_embedding", # Matches your previous Qdrant setup
+        limit=1,
+        with_payload=True
+    ).points
+
+    if not search_result:
+        return {"category": "uncategorized", "confidence_score": 0.0}
+
+    match = search_result[0]
+    return {
+        "semantic_category": match.payload.get("cluster_label", "unknown"),
+        "similarity_score": round(match.score, 4),
+        "cluster_id": match.payload.get("cluster_id")
+    }
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
