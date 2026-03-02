@@ -96,7 +96,7 @@ Images are saved to: `analysis/img/`
 ## Report Figures - Detailed Explanation
 
 ### Figure 1: Label Distribution
-![Label Distribution](img/01_label_distribution.png)
+![Label Distribution](img/01_label_distribution.png){ width=500 }
 
 | Metric | Value |
 |--------|-------|
@@ -112,7 +112,7 @@ Images are saved to: `analysis/img/`
 ---
 
 ### Figure 2: Text Length by Label
-![Text Length](img/02_text_length_mean.png)
+![Text Length](img/02_text_length_mean.png){ width=500 }
 
 | Label | Mean | Median |
 |-------|------|--------|
@@ -130,7 +130,7 @@ Images are saved to: `analysis/img/`
 ---
 
 ### Figure 3: Word Count by Label
-![Word Count](img/03_word_count.png)
+![Word Count](img/03_word_count.png){ width=500 }
 
 | Label | Median Words |
 |-------|--------------|
@@ -146,7 +146,7 @@ Images are saved to: `analysis/img/`
 ---
 
 ### Figure 4: Sentence Count by Label
-![Sentence Count](img/04_sentence_count.png)
+![Sentence Count](img/04_sentence_count.png){ width=500 }
 
 | Label | Median Sentences |
 |-------|------------------|

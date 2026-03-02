@@ -5,82 +5,86 @@ import pandas as pd
 import joblib
 import uvicorn
 import os
-import logging
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(name)s - %(message)s"
-)
-logger = logging.getLogger(__name__)
+# Preprocessing: cleans raw SMS text into normalized tokens
+# Required because model was trained on cleaned text (e.g., "walmart" -> "walmart", "$" -> "moneysymb")
+from data.clean import clean_text_v3
 
-MODEL_PATH = os.getenv("MODEL_PATH", "models/spam_classifier_v2.pkl")
+# Model configuration
+MODEL_PATH = os.getenv("MODEL_PATH", "models/svm_spam_model.pkl")
 
-model_state = {}
+# Global model state - populated at startup, cleared on shutdown
+model = {"pipeline": None, "threshold": 0.0, "spam_idx": 0}
 
-class SMSRequest(BaseModel):
-    text: str
+
+def load_model():
+    """Load trained model and artifacts from pickle file."""
+    artifacts = joblib.load(MODEL_PATH)
+    model["pipeline"] = artifacts["model"]
+    model["threshold"] = artifacts["threshold"]
+    # Find index of "spam" class in model's classes list
+    # This is needed because predict_proba returns probabilities in class order
+    model["spam_idx"] = list(model["pipeline"].classes_).index("spam")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    if not os.path.exists(MODEL_PATH):
-        logger.error(f"Model file not found at {MODEL_PATH}")
-        raise FileNotFoundError(f"Model file not found at {MODEL_PATH}")
-    
-    try:
-        artifacts = joblib.load(MODEL_PATH)
-        model_state["pipeline"] = artifacts["pipeline"]
-        model_state["threshold"] = artifacts["threshold"]
-        
-        classes = list(artifacts["classes"])
-        model_state["spam_idx"] = classes.index("spam")
-        
-        logger.info(f"Model loaded successfully. Threshold: {artifacts['threshold']}")
-    except Exception as e:
-        logger.error(f"Failed to load model: {e}")
-        raise
-    
+    """FastAPI lifecycle handler - loads model on startup, clears on shutdown."""
+    load_model()
     yield
-    logger.info("Shutting down API")
-    model_state.clear()
+
 
 app = FastAPI(title="Spam Detection API", lifespan=lifespan)
 
+
+class SMSRequest(BaseModel):
+    """Request body for /predict endpoint."""
+    text: str
+
+
 @app.get("/health")
 def health():
+    """Health check endpoint."""
     return {"status": "ok"}
 
-@app.get("/")
-def home():
-    return {
-        "message": "Spam Classifier API is running", 
-        "threshold": model_state.get("threshold")
-    }
 
 @app.post("/predict")
-def predict_sms(request: SMSRequest):
-    try:
-        pipeline = model_state["pipeline"]
-        threshold = model_state["threshold"]
-        spam_idx = model_state["spam_idx"]
+def predict(request: SMSRequest):
+    """
+    Predict if SMS is spam or ham.
+    
+    Flow:
+    1. Preprocess: clean raw text using clean_text_v3 (critical for accuracy)
+    2. Create DataFrame with 'text' (for metadata features) and 'clean_light' (for TF-IDF)
+    3. Get probability from model
+    4. Apply threshold to determine label
+    """
+    pipeline = model["pipeline"]
+    spam_idx = model["spam_idx"]
+    threshold = model["threshold"]
 
-        X = pd.Series([request.text])
-        
-        spam_probability = pipeline.predict_proba(X)[0][spam_idx]
-        
-        label = "spam" if spam_probability >= threshold else "ham"
-        
-        text_preview = request.text[:50] + "..." if len(request.text) > 50 else request.text
-        logger.info(f"Request - text: '{text_preview}', prediction: {label}, probability: {round(spam_probability, 4)}")
-        
-        return {
-            "text": request.text,
-            "prediction": label,
-            "spam_probability": round(float(spam_probability), 4),
-            "threshold_used": round(float(threshold), 4)
-        }
-    except Exception as e:
-        logger.error(f"Prediction error: {e}")
-        raise
+    # Step 1: Preprocess text - this is critical!
+    # Model expects cleaned tokens (e.g., "URGENT: Walmart $1000" -> "urgent walmart moneysymb")
+    cleaned = clean_text_v3(request.text)
+    
+    # Step 2: Match training DataFrame structure
+    # The pipeline uses two separate branches (see ml/train_svm.py):
+    #   - 'text_pipe' (TF-IDF): runs on 'clean_light' - needs normalized tokens
+    #   - 'meta_pipe' (SMSMetadataExtractor): runs on 'text' - needs raw text for features
+    # Without both columns, the model won't work correctly.
+    X = pd.DataFrame({"text": [request.text], "clean_light": [cleaned]})
+    
+    # Step 3: Get probability of being spam
+    prob = pipeline.predict_proba(X)[0][spam_idx]
+    
+    # Step 4: Apply threshold (default 0.5, but model uses optimized 0.56 for high precision)
+    label = "spam" if prob >= threshold else "ham"
+
+    return {
+        "prediction": label,
+        "spam_probability": round(float(prob), 4)
+    }
+
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
