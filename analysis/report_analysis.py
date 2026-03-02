@@ -7,7 +7,9 @@ from analysis.sms_word_count import run_sms_word_count
 from analysis.sms_sentence_count import run_sms_sentence_count
 from analysis.word_analysis_stop import run_word_stop_analysis
 from analysis.correlation import compute_correlation_matrix, compute_correlation_by_label
-
+import logging
+# Forces the root logger to handle everything from INFO level up
+logging.getLogger().setLevel(logging.INFO)
 
 def create_bar(ax, x_labels, values, title, ylabel, color):
     x = np.arange(len(x_labels))

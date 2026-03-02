@@ -15,19 +15,19 @@ def run_word_stop_analysis(top_n=20):
     logging.info("WORD (without stopwords) ANALYSIS")
 
     df = load_data()
-    df = df.dropna(subset=["clean_strict"])
-    df["clean_strict"] = df["clean_strict"].astype(str).str.strip()
+    df = df.dropna(subset=["clean_light"])
+    df["clean_light"] = df["clean_light"].astype(str).str.strip()
 
     logging.info(f"Rows loaded: {len(df)}")
 
-    top_all = get_top_words(df["clean_strict"], top_n)
+    top_all = get_top_words(df["clean_light"], top_n)
     top_words_all = [w for w, _ in top_all]
 
     spam_df = df[df["label"] == "spam"]
     ham_df = df[df["label"] == "ham"]
 
-    top_spam = get_top_words(spam_df["clean_strict"], top_n)
-    top_ham = get_top_words(ham_df["clean_strict"], top_n)
+    top_spam = get_top_words(spam_df["clean_light"], top_n)
+    top_ham = get_top_words(ham_df["clean_light"], top_n)
 
     top_words_spam = [w for w, _ in top_spam]
     top_words_ham = [w for w, _ in top_ham]

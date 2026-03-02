@@ -2,7 +2,7 @@
 
 help:
 	@echo "Available commands:"
-	@echo "  make clean          - Run data preprocessing (clean SMS data)"
+	@echo "  make clean-data          - Run data preprocessing (clean SMS data)"
 	@echo "  make word-analysis - Run word frequency analysis (spam vs ham)"
 	@echo "  make word-analysis-stop - Run word frequency analysis without stopwords (spam vs ham)"
 	@echo "  make ngrams         - Run ngram analysis (bigrams/trigrams)"
@@ -23,7 +23,7 @@ help:
 	@echo "  make all           - Run the entire end-to-step pipeline"
 
 clean-data:
-	python -m ml.clean
+	python -m data.clean
 
 word-analysis:
 	python -m analysis.word_analysis
@@ -57,6 +57,14 @@ train:
 
 train_nb:
 	python -m ml.train_nb
+
+train_rf:
+	python -m ml.train_rf
+
+train_svm:
+	python -m ml.train_svm
+train_lr:
+	python -m ml.train_lr
 
 predict:
 	python -m ml.predict

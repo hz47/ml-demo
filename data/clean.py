@@ -1,88 +1,42 @@
-"""
-Preprocessing Module
---------------------
-- Loads SMS dataset
-- Dual-cleaning: Strict (for meaning) & Light (for patterns)
-- Saves cleaned CSV
-"""
-
-import os
-import logging
-import pandas as pd
 import re
-import nltk
-from nltk.corpus import stopwords
+import pandas as pd
+import os
 
 RAW_DATA_PATH = "data/raw/SMSSpamCollection.txt"
 PROCESSED_DATA_PATH = "data/processed/sms_clean.csv"
 
-STRICT_REGEX = re.compile(r"[^a-zA-Z0-9\s]")
-LIGHT_REGEX = re.compile(r"[^a-zA-Z0-9\s!?$%]")
-
-def get_stopwords():
-    try:
-        return set(stopwords.words("english"))
-    except LookupError:
-        nltk.download("stopwords", quiet=True)
-        return set(stopwords.words("english"))
-
-def clean_text_strict(text: str, stop_words: set) -> str:
+def clean_text_v3(text: str) -> str:
     if not isinstance(text, str): return ""
-    
     text = text.lower()
-    text = STRICT_REGEX.sub(" ", text)
-    words = text.split()
-    words = [w for w in words if w not in stop_words and len(w) > 2]
     
-    return " ".join(words)
-
-def clean_text_light(text: str) -> str:
-    if not isinstance(text, str): return ""
+    # 1. Standardize common spam shorthand
+    text = re.sub(r'\b2\b', ' to ', text)
+    text = re.sub(r'\b4\b', ' for ', text)
+    text = re.sub(r'\bu\b', ' you ', text)
     
-    text = " ".join(text.split())
-    text = LIGHT_REGEX.sub(" ", text)
+    # 2. Fix currency symbols (including the '?' misencoding found in leaked spam)
+    # If a '?' is next to a number, it's almost certainly a currency symbol
+    text = re.sub(r'\?\d', ' moneysymb ', text) 
+    text = re.sub(r'[$£€]', ' moneysymb ', text)
     
-    return text.strip()
-
-def load_raw_data(path=RAW_DATA_PATH) -> pd.DataFrame:
-    if not os.path.exists(path):
-        raise FileNotFoundError(f"Missing raw data file: {path}")
-
-    return pd.read_csv(
-        path,
-        sep="\t",
-        names=["label", "text"],
-        header=None,
-        dtype={"label": "category", "text": "string"}
-    )
-
-def process_dataframe(df: pd.DataFrame) -> pd.DataFrame:
-    logging.info("Applying dual-cleaning strategy...")
-    stop_words = get_stopwords()
+    # 3. Normalize specific spam entities
+    text = re.sub(r'http\S+|www\S+', ' urladdr ', text)
+    text = re.sub(r'\b\d{10,13}\b', ' longphonenum ', text)
+    text = re.sub(r'\b\d{4,6}\b', ' shortcode ', text)
     
-    df["clean_strict"] = df["text"].map(lambda x: clean_text_strict(x, stop_words))
-    df["clean_light"] = df["text"].map(clean_text_light)
-    return df
+    # 4. Keep exclamation marks (Spam uses them 3x more than Ham)
+    text = re.sub(r"[^a-zA-Z0-9\s!]", " ", text)
+    return " ".join(text.split())
 
-def run_preprocessing():
-    logging.info("STEP 1: PREPROCESSING STARTED")
-
-    try:
-        df = load_raw_data()
-        df = process_dataframe(df)
-        
-        os.makedirs(os.path.dirname(PROCESSED_DATA_PATH), exist_ok=True)
-        df.to_csv(PROCESSED_DATA_PATH, index=False)
-        
-        logging.info(f"Preprocessing finished. Saved to {PROCESSED_DATA_PATH}")
-        
-    except Exception as e:
-        logging.error(f"Preprocessing failed: {e}")
-        raise
+def load_and_process():
+    if not os.path.exists(RAW_DATA_PATH):
+        print("Raw data file not found.")
+        return
+    df = pd.read_csv(RAW_DATA_PATH, sep="\t", names=["label", "text"], header=None)
+    df["clean_light"] = df["text"].apply(clean_text_v3)
+    os.makedirs(os.path.dirname(PROCESSED_DATA_PATH), exist_ok=True)
+    df.to_csv(PROCESSED_DATA_PATH, index=False)
+    print("V3 Preprocessing Complete.")
 
 if __name__ == "__main__":
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s - %(levelname)s - %(message)s"
-    )
-    run_preprocessing()
+    load_and_process()
