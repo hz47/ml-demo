@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SMS Spam Analysis Package</title>
+    <style>
+        body {
+            font-family: Georgia, serif;
+            max-width: 700px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            line-height: 1.7;
+            color: #222;
+        }
+        h1 { font-size: 1.8em; margin: 30px 0 10px; }
+        h2 { font-size: 1.3em; margin: 30px 0 10px; }
+        h3 { font-size: 1.1em; margin: 20px 0 8px; }
+        p { margin: 10px 0; }
+        img { max-width: 100%; margin: 15px 0; }
+        table { width: 100%; margin: 15px 0; border-collapse: collapse; }
+        td, th { padding: 6px 10px; border: 1px solid #ddd; text-align: left; }
+        th { background: #f5f5f5; }
+        pre { background: #f5f5f5; padding: 10px; overflow-x: auto; margin: 10px 0; }
+        code { background: #f5f5f5; padding: 1px 4px; }
+        ul, ol { margin: 8px 0 8px 20px; }
+        li { margin: 4px 0; }
+        hr { border: none; border-top: 1px solid #ddd; margin: 30px 0; }
+    </style>
+</head>
+<body>
+
+<h1>SMS Spam Analysis Package</h1>
+
+<p>Analysis of 5,572 SMS messages: 4,825 ham (86.6%) and 747 spam (13.4%).</p>
+
+<hr>
+
+<h2>Individual Analysis Scripts</h2>
+
+<table>
+<tr><th>Script</th><th>Description</th></tr>
+<tr><td><code>distribution.py</code></td><td>Count spam vs ham messages</td></tr>
+<tr><td><code>sms_length.py</code></td><td>Character count by label</td></tr>
+<tr><td><code>sms_word_count.py</code></td><td>Word count by label</td></tr>
+<tr><td><code>sms_sentence_count.py</code></td><td>Sentence count by label</td></tr>
+<tr><td><code>word_analysis.py</code></td><td>Top words (with stopwords)</td></tr>
+<tr><td><code>word_analysis_stop.py</code></td><td>Top words (no stopwords)</td></tr>
+<tr><td><code>ngrams.py</code></td><td>Bigrams & trigrams</td></tr>
+<tr><td><code>correlation.py</code></td><td>Feature correlations</td></tr>
+</table>
+
+<h3>Run Analyses</h3>
+<pre><code>make distribution && make sms-length && make word-count && make sentence-count
+make word-analysis && make word-analysis-stop && make ngrams && make correlation</code></pre>
+
+<h3>Generate Reports</h3>
+<pre><code>make report-analysis   # Combined figure
+make report-images     # Individual PNGs in analysis/img/</code></pre>
+
+<hr>
+
+<h2>Report Figures</h2>
+
+<h3>Figure 1: Label Distribution</h3>
+<img src="img/01_label_distribution.png">
+<p>Ham: 4,825 (86.6%) | Spam: 747 (13.4%)</p>
+<p>Class imbalance matters for model evaluation - accuracy alone is misleading.</p>
+
+<h3>Figure 2: Text Length</h3>
+<img src="img/02_text_length_mean.png">
+<p>Ham: median 52 chars | Spam: median 149 chars</p>
+<p>Spam is nearly 3x longer. Strong discriminative feature.</p>
+
+<h3>Figure 3: Word Count</h3>
+<img src="img/03_word_count.png">
+<p>Ham: 11 words | Spam: 25 words</p>
+<p>Spam has 2x more words than ham.</p>
+
+<h3>Figure 4: Sentence Count</h3>
+<img src="img/04_sentence_count.png">
+<p>Ham: 2 sentences | Spam: 4 sentences</p>
+<p>Spam is more verbose with more sentences.</p>
+
+<h3>Figure 5: Top Words (Spam)</h3>
+<img src="img/05_top_words_spam.png">
+<p>Keywords: shortcode, longphonenum, moneysymb, call</p>
+<p>Anonymized tokens reveal spam indicators.</p>
+
+<h3>Figure 6: Top Words (Ham)</h3>
+<img src="img/06_top_words_ham.png">
+<p>Keywords: you, i, my, me</p>
+<p>Personal pronouns dominate legitimate messages.</p>
+
+<h3>Figure 7: Correlation (Overall)</h3>
+<img src="img/07_correlation_overall.png">
+<p>Length-Word correlation: 0.974 | Length-Sentence: 0.713</p>
+<p>Strong correlations between metrics.</p>
+
+<h3>Figure 8: Correlation (Ham)</h3>
+<img src="img/08_correlation_ham.png">
+<p>Tight correlations (0.70-0.98) - natural proportional writing.</p>
+
+<h3>Figure 9: Correlation (Spam)</h3>
+<img src="img/09_correlation_spam.png">
+<p>Weak sentence correlations (0.21-0.34) - different writing pattern.</p>
+
+<hr>
+
+<h2>Key Findings</h2>
+<table>
+<tr><th>Metric</th><th>Spam</th><th>Ham</th></tr>
+<tr><td>Length</td><td>149 chars</td><td>52 chars</td></tr>
+<tr><td>Words</td><td>25</td><td>11</td></tr>
+<tr><td>Sentences</td><td>4</td><td>2</td></tr>
+<tr><td>Keywords</td><td>call, shortcode, moneysymb</td><td>you, i, my</td></tr>
+</table>
+
+<h3>N-gram Highlights</h3>
+<p><strong>Spam:</strong> "prize guaranteed", "1000 cash", "urgent mobile"</p>
+<p><strong>Ham:</strong> "ll later", "let know", "good morning"</p>
+
+<hr>
+
+<h2>ML Pipeline</h2>
+<p>Insights inform features: TF-IDF (vocabulary), metadata (length, uppercase, exclamations), n-grams (phrases).</p>
+<p>See <a href="../ml/README.md">ML README</a> for model performance.</p>
+
+</body>
+</html>
