@@ -6,7 +6,7 @@ import os
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from steps.clean import clean_text_strict, clean_text_light, get_stopwords, load_raw_data, process_dataframe, run_preprocessing
+from data.clean import clean_text_strict, clean_text_light, get_stopwords, load_raw_data, process_dataframe, run_preprocessing
 
 
 class TestCleanText:
@@ -52,15 +52,15 @@ class TestCleanText:
 
 class TestCleanPipeline:
 
-    @patch("steps.clean.os.path.exists")
+    @patch("data.clean.os.path.exists")
     def test_load_raw_data_file_not_found(self, mock_exists):
         mock_exists.return_value = False
         
         with pytest.raises(FileNotFoundError):
             load_raw_data("nonexistent.txt")
 
-    @patch("steps.clean.pd.read_csv")
-    @patch("steps.clean.os.path.exists")
+    @patch("data.clean.pd.read_csv")
+    @patch("data.clean.os.path.exists")
     def test_load_raw_data_success(self, mock_exists, mock_read_csv):
         mock_exists.return_value = True
         mock_read_csv.return_value = pd.DataFrame({
@@ -85,10 +85,10 @@ class TestCleanPipeline:
         assert "clean_light" in result.columns
         assert len(result) == 3
 
-    @patch("steps.clean.process_dataframe")
-    @patch("steps.clean.load_raw_data")
-    @patch("steps.clean.pd.DataFrame.to_csv")
-    @patch("steps.clean.os.makedirs")
+    @patch("data.clean.process_dataframe")
+    @patch("data.clean.load_raw_data")
+    @patch("data.clean.pd.DataFrame.to_csv")
+    @patch("data.clean.os.makedirs")
     def test_run_preprocessing_success(self, mock_makedirs, mock_to_csv, mock_load, mock_process):
         mock_load.return_value = pd.DataFrame({"label": ["ham"], "text": ["hello"]})
         mock_process.return_value = pd.DataFrame({"label": ["ham"], "text": ["hello"], "clean_strict": ["hello"], "clean_light": ["hello"]})

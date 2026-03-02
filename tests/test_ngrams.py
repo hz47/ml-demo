@@ -6,7 +6,7 @@ import os
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from utils.ngrams import top_ngrams, run_ngrams
+from analysis.ngrams import top_ngrams, run_ngrams
 
 
 class TestNgrams:
@@ -54,13 +54,23 @@ class TestNgrams:
 
 class TestRunNgrams:
 
-    @patch("utils.ngrams.pd.read_csv")
+    @patch("analysis.ngrams.pd.read_csv")
     def test_run_ngrams(self, mock_read_csv):
         mock_read_csv.return_value = pd.DataFrame({
-            "clean_strict": ["hello world hello", "world is great", "hello test"]
+            "label": ["ham", "spam", "ham"],
+            "text": ["hello world hello", "world is great spam", "hello test ham"]
         })
         
-        bigrams, trigrams = run_ngrams(top_n=5)
+        result = run_ngrams(top_n=5)
         
-        assert isinstance(bigrams, list)
-        assert isinstance(trigrams, list)
+        assert isinstance(result, dict)
+        assert "total_bigrams" in result
+        assert "total_trigrams" in result
+        assert "total_ngrams" in result
+        assert "ham_bigrams" in result
+        assert "ham_trigrams" in result
+        assert "spam_bigrams" in result
+        assert "spam_trigrams" in result
+        assert isinstance(result["total_bigrams"], list)
+        assert isinstance(result["total_ngrams"], list)
+        assert result["total_ngrams"] == result["total_bigrams"] + result["total_trigrams"]

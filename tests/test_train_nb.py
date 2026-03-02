@@ -7,7 +7,7 @@ import os
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from steps.train_nb import (
+from ml.train_nb import (
     calculate_best_threshold,
     prepare_data,
     create_pipeline,
@@ -54,7 +54,7 @@ class TestTrainNB:
 
         assert isinstance(threshold, (float, np.floating))
 
-    @patch("steps.train_nb.pd.read_csv")
+    @patch("ml.train_nb.pd.read_csv")
     def test_prepare_data(self, mock_read_csv, dummy_dataframe):
         mock_read_csv.return_value = dummy_dataframe
 
@@ -75,7 +75,7 @@ class TestTrainNB:
         assert hasattr(pipeline, "predict")
         assert hasattr(pipeline, "predict_proba")
 
-    @patch("steps.train_nb.pd.read_csv")
+    @patch("ml.train_nb.pd.read_csv")
     def test_prepare_data_returns_correct_splits(self, mock_read_csv):
         data = {
             "clean_light": ["text"] * 20,
@@ -105,11 +105,11 @@ class TestTrainNB:
 
         mock_pipeline.predict_proba.assert_called()
 
-    @patch("steps.train_nb.prepare_data")
-    @patch("steps.train_nb.create_pipeline")
-    @patch("steps.train_nb.evaluate_model")
-    @patch("steps.train_nb.joblib.dump")
-    @patch("steps.train_nb.os.makedirs")
+    @patch("ml.train_nb.prepare_data")
+    @patch("ml.train_nb.create_pipeline")
+    @patch("ml.train_nb.evaluate_model")
+    @patch("ml.train_nb.joblib.dump")
+    @patch("ml.train_nb.os.makedirs")
     def test_run_model_training(self, mock_makedirs, mock_dump, mock_eval, mock_create, mock_prepare):
         X_train = pd.Series(["text1", "text2", "text3", "text4"])
         X_val = pd.Series(["text5"])

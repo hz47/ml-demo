@@ -2,11 +2,11 @@ import argparse
 import logging
 import sys
 
-from steps.clean import run_preprocessing
-from utils.word_analysis import run_word_analysis
-from utils.ngrams import run_ngrams
-from steps.train import run_model_training
-from steps.train_nb import run_model_training as run_nb_training
+from data.clean import run_preprocessing
+from analysis.word_analysis import run_word_analysis
+from analysis.ngrams import run_ngrams
+from ml.train import run_model_training
+from ml.train_nb import run_model_training as run_nb_training
 
 
 def setup_logging():
@@ -27,11 +27,31 @@ def run_clean():
 
 def run_analysis():
     logging.info("STEP 2: WORD ANALYSIS")
-    top_words = run_word_analysis()
+    word_results = run_word_analysis()
+    top_words = word_results["all"]
+    spam_words = word_results["spam"]
+    ham_words = word_results["ham"]
+
+    logging.info("Top words - All: %s", top_words)
+    logging.info("Top words - Spam: %s", spam_words)
+    logging.info("Top words - Ham: %s", ham_words)
 
     logging.info("STEP 3: NGRAM ANALYSIS")
-    top_bigrams, top_trigrams = run_ngrams()
-    top_ngrams = top_bigrams + top_trigrams
+    ngram_results = run_ngrams()
+    top_bigrams = ngram_results["total_bigrams"]
+    top_trigrams = ngram_results["total_trigrams"]
+    top_ngrams = ngram_results["total_ngrams"]
+    ham_bigrams = ngram_results["ham_bigrams"]
+    ham_trigrams = ngram_results["ham_trigrams"]
+    spam_bigrams = ngram_results["spam_bigrams"]
+    spam_trigrams = ngram_results["spam_trigrams"]
+
+    logging.info("Top bigrams - All: %s", top_bigrams)
+    logging.info("Top trigrams - All: %s", top_trigrams)
+    logging.info("Top bigrams - Ham: %s", ham_bigrams)
+    logging.info("Top trigrams - Ham: %s", ham_trigrams)
+    logging.info("Top bigrams - Spam: %s", spam_bigrams)
+    logging.info("Top trigrams - Spam: %s", spam_trigrams)
 
 
 def run_train():
@@ -46,7 +66,7 @@ def run_train_nb():
 
 def run_benchmark():
     logging.info("STEP 6: MODEL BENCHMARK")
-    from steps.benchmark import run_benchmark as run_bm
+    from ml.benchmark import run_benchmark as run_bm
     run_bm()
 
 

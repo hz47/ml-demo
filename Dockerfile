@@ -11,8 +11,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app.py .
 COPY config.yml .
-COPY steps/ ./steps/
-COPY utils/ ./utils/
+COPY ml/ ./ml/
+COPY analysis/ ./analysis/
 COPY models/ ./models/
 COPY data/ ./data/
 

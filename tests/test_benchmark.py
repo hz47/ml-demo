@@ -7,7 +7,7 @@ import os
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from steps.benchmark import (
+from ml.benchmark import (
     load_test_data,
     load_model,
     predict_with_threshold,
@@ -19,7 +19,7 @@ from steps.benchmark import (
 
 class TestBenchmark:
 
-    @patch("steps.benchmark.pd.read_csv")
+    @patch("ml.benchmark.pd.read_csv")
     def test_load_test_data(self, mock_read_csv):
         data = {
             "clean_light": ["text1", "text2", "text3", "text4"],
@@ -32,7 +32,7 @@ class TestBenchmark:
         assert len(X_test) > 0
         assert len(y_test) > 0
 
-    @patch("steps.benchmark.joblib.load")
+    @patch("ml.benchmark.joblib.load")
     def test_load_model(self, mock_joblib):
         mock_artifacts = {
             "pipeline": MagicMock(),

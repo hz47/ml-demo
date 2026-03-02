@@ -15,8 +15,16 @@ class TestRunAll:
     @patch("run_all.run_model_training")
     @patch("sys.argv", ["run_all.py"])
     def test_main_runs_all_steps(self, mock_train, mock_ngrams, mock_word, mock_clean, mock_benchmark):
-        mock_word.return_value = ["word1", "word2"]
-        mock_ngrams.return_value = (["bigram1"], ["trigram1"])
+        mock_word.return_value = {"all": ["word1", "word2"], "spam": ["free"], "ham": ["hello"]}
+        mock_ngrams.return_value = {
+            "total_bigrams": ["bigram1"],
+            "total_trigrams": ["trigram1"],
+            "total_ngrams": ["bigram1", "trigram1"],
+            "ham_bigrams": ["ham_bigram1"],
+            "ham_trigrams": ["ham_trigram1"],
+            "spam_bigrams": ["spam_bigram1"],
+            "spam_trigrams": ["spam_trigram1"],
+        }
         
         from run_all import main
         main()
