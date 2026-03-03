@@ -57,7 +57,7 @@ class TestRunWordStopAnalysis:
     def test_run_word_stop_analysis_returns_dict_with_all_spam_ham(self, mock_read_csv):
         mock_read_csv.return_value = pd.DataFrame({
             "label": ["spam", "ham", "spam", "ham"],
-            "clean_strict": ["free call", "hello world", "win prize", "good morning"]
+            "clean_light": ["free call", "hello world", "win prize", "good morning"]
         })
         
         result = run_word_stop_analysis(top_n=5)
@@ -71,7 +71,7 @@ class TestRunWordStopAnalysis:
     def test_run_word_stop_analysis_spam_ham_separated(self, mock_read_csv):
         mock_read_csv.return_value = pd.DataFrame({
             "label": ["spam", "ham", "spam", "ham"],
-            "clean_strict": ["free call", "hello world", "win prize", "good morning"]
+            "clean_light": ["free call", "hello world", "win prize", "good morning"]
         })
         
         result = run_word_stop_analysis(top_n=2)
@@ -84,11 +84,11 @@ class TestRunWordStopAnalysis:
         assert "hello" not in result["spam"]
 
     @patch("analysis.word_analysis_stop.pd.read_csv")
-    def test_run_word_stop_analysis_uses_clean_strict_column(self, mock_read_csv):
+    def test_run_word_stop_analysis_uses_clean_light_column(self, mock_read_csv):
         mock_read_csv.return_value = pd.DataFrame({
             "label": ["spam", "ham"],
             "text": ["original text", "original text"],
-            "clean_strict": ["clean text", "clean text"]
+            "clean_light": ["clean text", "clean text"]
         })
         
         result = run_word_stop_analysis(top_n=2)
