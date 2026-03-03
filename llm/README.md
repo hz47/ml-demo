@@ -1,138 +1,49 @@
-# SMS Embedding Clustering (Qdrant + KMeans)
+# LLM Module
 
-This project fetches SMS embeddings from a Qdrant collection, normalizes them, optionally reduces dimensionality with PCA, and clusters them using MiniBatch K-Means. It exports a CSV of clustered results and provides a t-SNE visualization.
+SMS embeddings + clustering for semantic search and spam detection.
 
----
+## What are Embeddings?
 
-## ✅ Features
+Embeddings convert text into numerical vectors (lists of numbers) that capture semantic meaning. Similar messages end up close to each other in this numerical space.
 
-- Fetches SMS embeddings directly from Qdrant
-- Normalizes vectors for better clustering performance
-- Optional PCA for faster clustering
-- Automatically selects best $k$ using silhouette score
-- Exports clustered results to CSV
-- Visualizes clusters using t-SNE
+**Example:** "You won free money" and "Congratulations prize winner" → similar vectors
 
----
+## Embeddings
 
-## ✅ How It Works
+| Model | Dimension | Storage |
+|-------|-----------|---------|
+| text-embedding-3-small | 1536 | Qdrant |
 
-1. **Fetch Data**  
-   Loads SMS texts and their vector embeddings from Qdrant.
+## What is Clustering?
 
-2. **Normalize**  
-   Applies $L_2$ normalization so $||x||_2 = 1$.
+Clustering groups similar items together without predefined labels. K-Means (k=2) tries to split data into 2 groups - we use this to separate spam from ham based on embedding similarity.
 
-3. **(Optional) PCA**  
-   Reduces embedding dimensions to speed up clustering.
+## Clustering Results
 
-4. **Find Best $k$**  
-   Runs K-Means with multiple $k$ values and picks the best based on silhouette score.
+| Messages | Silhouette Score | Spam Cluster |
+|----------|------------------|--------------|
+| 5,109 | 0.030 | Cluster 1 |
 
-5. **Cluster & Export**  
-   Saves results to CSV and prints sample messages per cluster.
+## Key Findings
 
-6. **Visualize**  
-   t-SNE plot shows cluster separation.
+- **Low separation**: Silhouette score of 0.03 indicates significant overlap between spam/ham in embedding space
+- **Not for classification**: Embeddings alone don't cleanly separate spam from ham
+- **Best use**: Semantic similarity search (find similar messages)
 
----
+## Usage
 
-## ✅ Project Structure
-
-```
-.
-├── clustering.py
-├── clustered_results.csv
-└── README.md
-```
-
----
-
-## ✅ Installation
-
+### Generate Embeddings
 ```bash
-pip install numpy pandas matplotlib scikit-learn qdrant-client
+python -m llm.embedding
 ```
 
----
-
-## ✅ Usage
-
-Edit the config values in `clustering.py`:
-
-```python
-URL = "http://your-qdrant-url"
-COLLECTION = "sms_collection"
-```
-
-Run:
-
+### Run Clustering
 ```bash
-python clustering.py
+python -m llm.clustering
 ```
 
----
+## Visualization
 
-## ✅ Output
+![Clustering](./img/clustering_visualization.png)
 
-### 1. CSV Export
-
-`clustered_results.csv`
-
-Example:
-
-| SMS | Cluster |
-|---|---|
-| "Payment received" | 0 |
-| "Your OTP is 1234" | 1 |
-
----
-
-### 2. Console Summary
-
-```
-✅ Loaded 5000 valid records.
-🔎 Analyzing 5000 records for optimal k...
-  > k=3: Silhouette = 0.241
-  > k=4: Silhouette = 0.278
-✅ Selected k=4 (Score: 0.278)
-```
-
----
-
-### 3. t-SNE Plot
-
-A 2D scatter plot of embeddings colored by cluster ID.
-
----
-
-## ✅ Configuration Options
-
-You can customize:
-
-- `max_points` — max SMS pulled from Qdrant
-- `batch_size` — Qdrant scroll batch size
-- `n_components` — PCA components
-- `k_min`, `k_max` — KMeans range
-- `sample_size` — silhouette sample size
-
----
-
-## ✅ Troubleshooting
-
-### PCA error: `n_components` too large  
-PCA components must satisfy:
-
-$$
-n\_{components} \le \min(n\_{samples}, n\_{features})
-$$
-
-The script now auto-adjusts this for small datasets.
-
----
-
-## ✅ Example Command
-
-```bash
-python clustering.py
-```
+t-SNE projection (dimensionality reduction to 2D) showing spam (red) vs ham (blue). Notice how the clusters overlap significantly.
