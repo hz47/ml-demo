@@ -2,7 +2,7 @@
 
 SMS embeddings + clustering for semantic search and spam detection.
 
-## What are Embeddings?
+## Embeddings
 
 Embeddings convert text into numerical vectors (lists of numbers) that capture semantic meaning. Similar messages end up close to each other in this numerical space.
 
@@ -14,9 +14,9 @@ Embeddings convert text into numerical vectors (lists of numbers) that capture s
 |-------|-----------|---------|
 | text-embedding-3-small | 1536 | Qdrant |
 
-## What is Clustering?
+## Clustering
 
-Clustering groups similar items together without predefined labels. K-Means (k=2) tries to split data into 2 groups - we use this to separate spam from ham based on embedding similarity.
+Clustering groups similar items together without predefined labels. K-Means (k=2) tries to split data into 2 groups, we use this to separate spam from ham based on embedding similarity.
 
 ## Clustering Results
 
@@ -28,7 +28,6 @@ Clustering groups similar items together without predefined labels. K-Means (k=2
 
 - **Low separation**: Silhouette score of 0.03 indicates significant overlap between spam/ham in embedding space
 - **Not for classification**: Embeddings alone don't cleanly separate spam from ham
-- **Best use**: Semantic similarity search (find similar messages)
 
 ## Usage
 
@@ -42,8 +41,8 @@ python -m llm.embedding
 python -m llm.clustering
 ```
 
-## Visualization
+## Cluster
 
 ![Clustering](./img/clustering_visualization.png)
 
-t-SNE projection (dimensionality reduction to 2D) showing spam (red) vs ham (blue). Notice how the clusters overlap significantly.
+t-SNE projection (dimensionality reduction to 2D) showing spam (red) vs ham (blue).
