@@ -1,4 +1,4 @@
-# ML Demo - SMS Spam Intelligence
+# ML Demo - SMS spam detection
 
 FastAPI SMS spam detection, combining ML classification + LLM semantic clustering
 
