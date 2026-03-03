@@ -13,7 +13,7 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import classification_report, precision_recall_curve, confusion_matrix
 from sklearn.base import BaseEstimator, TransformerMixin
 from config import MODELS_DIR
-from ml.utils import load_data, find_high_precision_threshold
+from ml.utils import load_data, find_high_precision_threshold, check_overfitting
 
 logging.basicConfig(
     level=logging.INFO,
@@ -82,6 +82,14 @@ def run_training():
     ])
 
     logger.info("Training pipeline...")
+    logger.info("Checking for overfitting...")
+    overfit_result = check_overfitting(pipeline, X_train, y_train, cv=5)
+    logger.info(f"Train Score: {overfit_result['train_score']:.4f}")
+    logger.info(f"CV Score: {overfit_result['cv_score_mean']:.4f} (+/- {overfit_result['cv_score_std']:.4f})")
+    logger.info(f"Overfitting Gap: {overfit_result['overfitting_gap']:.4f}")
+    if overfit_result['is_overfitting']:
+        logger.warning("OVERFITTING DETECTED - Consider tuning hyperparameters")
+    
     pipeline.fit(X_train, y_train)
 
     spam_idx = list(pipeline.classes_).index("spam")

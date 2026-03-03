@@ -69,3 +69,50 @@ def find_high_precision_threshold(y_true, probs, target_precision=1.0, default=0
     precisions, recalls, thresholds = precision_recall_curve(y_true, probs, pos_label="spam")
     valid_idx = np.where(precisions >= target_precision)[0]
     return thresholds[valid_idx[0]] if len(valid_idx) > 0 else default
+
+
+def check_overfitting(pipeline, X, y, cv=5, scoring='f1_weighted'):
+    """
+    Check for overfitting by comparing train score vs cross-validation score.
+    
+    Args:
+        pipeline: sklearn pipeline with fit method
+        X: Features (DataFrame or array)
+        y: Labels
+        cv: Number of cross-validation folds
+        scoring: Scoring metric ('f1_weighted', 'accuracy', 'precision_weighted', etc.)
+    
+    Returns:
+        dict: {
+            'train_score': float,
+            'cv_score_mean': float,
+            'cv_score_std': float,
+            'overfitting_gap': float,
+            'is_overfitting': bool
+        }
+    """
+    from sklearn.model_selection import cross_val_score
+    
+    cv_scores = cross_val_score(pipeline, X, y, cv=cv, scoring=scoring)
+    
+    pipeline_copy = pipeline.fit(X, y)
+    train_score = scoring_to_func(scoring)(pipeline_copy, X, y)
+    
+    cv_mean = cv_scores.mean()
+    cv_std = cv_scores.std()
+    gap = train_score - cv_mean
+    
+    return {
+        'train_score': train_score,
+        'cv_score_mean': cv_mean,
+        'cv_score_std': cv_std,
+        'overfitting_gap': gap,
+        'is_overfitting': gap > 0.05 or train_score >= 0.99
+    }
+
+
+def scoring_to_func(scoring):
+    """Return appropriate scoring function."""
+    from sklearn.metrics import get_scorer
+    scorer = get_scorer(scoring)
+    return scorer
