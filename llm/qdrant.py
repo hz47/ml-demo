@@ -1,20 +1,14 @@
 from qdrant_client import QdrantClient
 import os
 from dotenv import load_dotenv
+
 load_dotenv()
 
-# Access keys using os.getenv
-QDRANT_KEY = os.getenv("QDRANT_API_KEY")
+client = QdrantClient(url=os.getenv("QDRANT_URL"), api_key=os.getenv("QDRANT_API_KEY"))
 
-qdrant = QdrantClient(
-    url="http://qdrant-rosssw0o8o0gwwck0c0o0484.116.203.135.75.sslip.io",
-    api_key=QDRANT_KEY,  # optional, falls aktiviert
-    check_compatibility=False
+points, _ = client.scroll(collection_name="sms_collection", limit=2, with_payload=True)
 
-)# qdrant = QdrantClient(url="https://<dein-remote-qdrant>", api_key="<API_KEY>")  # Cloud
-
-
-# Alle Collections abrufen
-collections = qdrant.get_collections()
-print("Collections in Qdrant:")
-print(collections)
+for p in points:
+    print(f"id: {p.id}")
+    print(f"payload: {p.payload}")
+    print("-" * 30)
