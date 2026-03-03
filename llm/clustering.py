@@ -118,15 +118,11 @@ class SMSSpamDetector:
         
         plt.title("Upgraded SMS Clustering (Unique Messages)")
         plt.legend()
-<<<<<<< HEAD
-        plt.show()
-=======
         
         output_path = "llm/img/clustering_visualization.png"
         plt.savefig(output_path, dpi=150, bbox_inches="tight")
         logging.info(f"Visualization saved to {output_path}")
         plt.close()
->>>>>>> 49c38dd062e56690fa2dc74ece3adcf68b13335b
 
 def main():
     detector = SMSSpamDetector()
