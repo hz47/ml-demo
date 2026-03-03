@@ -99,7 +99,7 @@ def run_training():
     test_probs = pipeline.predict_proba(X_test)[:, spam_idx]
     y_pred = np.where(test_probs >= best_threshold, "spam", "ham")
 
-    logger.info(f"[FINAL] Decision Threshold: {best_threshold:.4f}")
+    logger.info(f"[Naive Bayes]] Decision Threshold: {best_threshold:.4f}")
     logger.info("\n" + classification_report(y_test, y_pred))
 
     cm = confusion_matrix(y_test, y_pred)

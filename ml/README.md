@@ -6,16 +6,20 @@ SMS Spam Classification models with hybrid TF-IDF + metadata features.
 
 | Rank | Model | Threshold | Accuracy | Spam Recall | False Positives |
 |:----:|-------|-----------|----------|-------------|:---------------:|
-| 1 | **SVM** | 0.5613 | **99%** | **93%** | **0** |
-| 2 | **Logistic Regression** | 0.8509 | 98% | 87% | **0** |
-| 3 | **Random Forest** | 0.5320 | 98% | 88% | 2 |
+| 1 | **SVM** | 0.4901 | **99%** | **95%** | **1** |
+| 2 | **Logistic Regression** | 0.7259 | 99% | 91% | **2** |
+| 3 | **Random Forest** | 0.5600 | 98% | 88% | 2 |
 | 4 | **Naive Bayes** | 0.9617 | 98% | 85% | **0** |
 
 ## Key Findings
 
-- **Best Overall**: SVM (#1) achieves the highest accuracy (99%) with zero false positives and highest spam recall (93%)
-- **Zero False Positives**: SVM, Logistic Regression, and Naive Bayes all achieve 100% precision on ham (zero false positives)
-- **Trade-off**: Higher threshold = higher precision but lower recall
+- **Best Overall**: SVM (#1) achieves the highest accuracy (**99%**) with only **1 false positive** and the highest spam recall (**95%**).
+
+- **Zero False Positives**: Naive Bayes (#4) flagged **no ham messages incorrectly** (100% precision on ham), but spam recall is lower (**85%**).
+
+- **Trade-off Observed**: Models with **higher decision thresholds** (e.g., Naive Bayes 0.9617, Logistic Regression 0.7259) tend to have **fewer false positives** but **lower spam recall**. Lower thresholds (e.g., SVM 0.4901) increase spam detection at the cost of minimal false positives.
+
+- **Balanced Performance**: Random Forest (#3) shows a **compromise** between spam recall (**88%**) and false positives (**2**) with a moderate threshold (**0.5600**).
 
 ## Features
 
