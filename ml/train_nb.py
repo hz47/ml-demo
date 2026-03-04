@@ -62,8 +62,8 @@ def run_training():
     logger.info(f"Train size: {len(X_train)}, Val size: {len(X_val)}, Test size: {len(X_test)}")
 
     text_branch = FeatureUnion([
-        ("words", TfidfVectorizer(max_features=4000, ngram_range=(1, 3))),
-        ("chars", TfidfVectorizer(analyzer="char", max_features=2000, ngram_range=(3, 5)))
+        ("words", TfidfVectorizer(max_features=2000, ngram_range=(1, 2))),
+        ("chars", TfidfVectorizer(analyzer="char", max_features=1000, ngram_range=(3, 4)))
     ])
 
     meta_branch = Pipeline([
@@ -78,7 +78,7 @@ def run_training():
 
     pipeline = Pipeline([
         ("features", processor),
-        ("clf", CalibratedClassifierCV(MultinomialNB(alpha=0.1), method='sigmoid', cv=5))
+        ("clf", CalibratedClassifierCV(MultinomialNB(alpha=0.5), method='sigmoid', cv=5))
     ])
 
     logger.info("Training pipeline...")

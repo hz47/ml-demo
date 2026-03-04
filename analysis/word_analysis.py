@@ -1,13 +1,16 @@
 import logging
 import pandas as pd
 from collections import Counter
+from nltk.corpus import stopwords
 from .utils import load_data
 
 
 def get_top_words(texts, n=20):
+    stop_words = set(stopwords.words('english'))
     counter = Counter()
     for text in texts:
-        counter.update(text.lower().split())
+        words = [w for w in text.lower().split() if w not in stop_words]
+        counter.update(words)
     return counter.most_common(n)
 
 

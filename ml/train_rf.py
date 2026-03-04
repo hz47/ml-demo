@@ -35,7 +35,7 @@ def run_training():
 
     text_branch = FeatureUnion([
         ("words", TfidfVectorizer(max_features=3000, ngram_range=(1, 2))),
-        ("chars", TfidfVectorizer(analyzer="char", max_features=1000, ngram_range=(3, 5)))
+        ("chars", TfidfVectorizer(analyzer="char", max_features=1000, ngram_range=(3, 4)))
     ])
 
     meta_branch = Pipeline([
@@ -50,7 +50,7 @@ def run_training():
 
     rf_model = RandomForestClassifier(
         n_estimators=200,
-        max_depth=30,
+        max_depth=15,
         class_weight="balanced",
         random_state=42,
         n_jobs=-1

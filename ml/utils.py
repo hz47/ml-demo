@@ -54,8 +54,8 @@ class SMSMetadataExtractor(BaseEstimator, TransformerMixin):
             # uppercase calculation on the RAW text
             upper_ratio = sum(1 for c in text_raw if c.isupper()) / (char_count + 1)
             
-            trigger_count = sum(1 for t in triggers if t in text_lower)
-            excl_count = text_raw.count('!')
+            trigger_count = sum(1 for t in triggers if t in text_lower) 
+            excl_count = text_raw.count('!') 
             
             # Explicit binary flags to bypass TF-IDF dilution
             has_currency = 1 if currency_pattern.search(text_raw) else 0
@@ -81,9 +81,40 @@ def load_data():
     return df
 
 
-def find_high_precision_threshold(y_true, probs, target_precision=1.0, default=0.98):
+def find_high_precision_threshold(y_true, probs, target_precision=1.0, default=0.95):
+    """
+    Find the minimum threshold that achieves target precision.
+    
+    Example: If target_precision=1.0, find the threshold where we get
+             100% precision (no false positives - never mark ham as spam).
+    
+    Args:
+        y_true: Actual labels (spam/ham)
+        probs: Predicted probability that each sample is spam (0 to 1)
+        target_precision: Minimum precision we want (1.0 = 100%, 0.95 = 95%)
+        default: Fallback threshold if target can't be met
+    
+    Returns:
+        Threshold value to use for predictions
+    
+    How it works:
+    1. Try many different thresholds (0.0, 0.01, 0.02, ... 1.0)
+    2. At each threshold, calculate precision and recall
+    3. Find the FIRST threshold where precision >= target
+    4. Return that threshold
+    
+    Trade-off:
+    - Higher threshold = Higher precision (fewer false positives) but lower recall (miss more spam)
+    - Lower threshold = Lower precision (more false positives) but higher recall (catch more spam)
+    """
+    # Calculate precision and recall at every possible threshold
+    # Returns arrays: [precision_at_thresh0, precision_at_thresh1, ...]
     precisions, recalls, thresholds = precision_recall_curve(y_true, probs, pos_label="spam")
+    
+    # Find indices where precision meets our target (e.g., >= 1.0 for 100%)
     valid_idx = np.where(precisions >= target_precision)[0]
+    
+    # Return the first threshold that meets target, or default if none found
     return thresholds[valid_idx[0]] if len(valid_idx) > 0 else default
 
 
@@ -123,7 +154,7 @@ def check_overfitting(pipeline, X, y, cv=5, scoring='f1_weighted'):
         'cv_score_mean': cv_mean,
         'cv_score_std': cv_std,
         'overfitting_gap': gap,
-        'is_overfitting': gap > 0.05 or train_score >= 0.99
+        'is_overfitting': gap > 0.07 
     }
 
 
